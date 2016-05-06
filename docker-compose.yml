@@ -1,0 +1,13 @@
+go_api:
+  build: ./api
+  ports:
+    - "8080:8080"
+
+
+db:
+  image: mongo:latest
+  command: ["mongod", "--smallfiles"]
+  volumes:
+    - /mongodata:/data/db
+  ports:
+    - "27017:27017"
