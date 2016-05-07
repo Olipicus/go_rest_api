@@ -1,4 +1,4 @@
-package model
+package person
 
 // Person Model
 type Person struct {
