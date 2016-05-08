@@ -18,6 +18,7 @@ func main() {
 	router.HandleFunc("/person/{id}", person.Handler.GetDataByID).Methods("GET")
 	router.HandleFunc("/person", person.Handler.InsertData).Methods("POST")
 	router.HandleFunc("/person/{id}", person.Handler.UpdateByID).Methods("PUT")
+	router.HandleFunc("/person/{id}", person.Handler.RemoveByID).Methods("DELETE")
 
 	log.Println("Server Start ...")
 	log.Fatal(http.ListenAndServe(":8080", router))

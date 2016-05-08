@@ -36,16 +36,18 @@ func (h *Helper) Close() {
 }
 
 //GetOneData : Get Single Document
-func (h *Helper) GetOneData(collectionName string, id string) interface{} {
+func (h *Helper) GetOneData(collectionName string, id string) (interface{}, error) {
 	c := h.session.DB(dbName).C(collectionName)
 	var obj interface{}
-	err := c.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&obj)
+	err := c.FindId(bson.ObjectIdHex(id)).One(&obj)
+	return obj, err
+}
 
-	if err != nil {
-		return nil
-	}
+//RemoveByID : Remove Data By ID
+func (h *Helper) RemoveByID(collectionName string, id string) error {
+	c := h.session.DB(dbName).C(collectionName)
+	return c.RemoveId(bson.ObjectIdHex(id))
 
-	return obj
 }
 
 //InsertData : Insert Document to Collection
@@ -58,8 +60,5 @@ func (h *Helper) InsertData(collectionName string, obj interface{}) error {
 func (h *Helper) UpdateData(collectionName string, id string, obj interface{}) error {
 	c := h.session.DB(dbName).C(collectionName)
 	update := bson.M{"$set": obj}
-	if err := c.UpdateId(bson.ObjectIdHex(id), update); err != nil {
-		return err
-	}
-	return nil
+	return c.UpdateId(bson.ObjectIdHex(id), update)
 }
