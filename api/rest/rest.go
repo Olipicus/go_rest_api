@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"code.olipicus.com/go_rest_api/api/message"
 	"code.olipicus.com/go_rest_api/api/utility/mongo"
 	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2"
@@ -17,7 +16,36 @@ type REST struct {
 	OBJ        interface{}
 }
 
-//RemoveByID ...
+func (rest *REST) responseResult(res http.ResponseWriter, result Result) {
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(result.StatusCode)
+	json.NewEncoder(res).Encode(result)
+}
+
+func (rest *REST) responseDataResult(res http.ResponseWriter, result Result, data interface{}) {
+	resultSuccess := ResultSuccess{
+		Result: result,
+		Data:   data,
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	json.NewEncoder(res).Encode(resultSuccess)
+}
+
+func (rest *REST) responseErrorResult(res http.ResponseWriter, err Error) {
+	result := ResultError{
+		Result: Result{
+			StatusCode:  http.StatusInternalServerError,
+			Description: "Error",
+		},
+		Error: err,
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusInternalServerError)
+	json.NewEncoder(res).Encode(result)
+}
+
+//RemoveByID : Remove data by HTTP DELETE
 func (rest *REST) RemoveByID(res http.ResponseWriter, req *http.Request) {
 	var mgh mongo.Helper
 	mgh.Init()
@@ -27,22 +55,20 @@ func (rest *REST) RemoveByID(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	id := vars["id"]
 
-	msg := "Success"
-	msgType := "Information"
-
 	if err := mgh.RemoveByID(rest.Collection, id); err != nil {
-		switch err.Error() {
-		case "not found":
-			msg, msgType = "Data Not Found", "DeleteFail"
-		default:
-			msg, msgType = "Delete Fail", "DeleteFail"
-		}
 		log.Println(err)
+		switch err {
+		case mgo.ErrNotFound:
+			rest.responseResult(res, resultDataNotFound)
+		default:
+			rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
+		}
+		return
 	}
-	message.PrintJSONMessage(res, msg, msgType)
+	rest.responseResult(res, resultDeleteComplete)
 }
 
-//UpdateByID ...
+//UpdateByID : Update Data by HTTP PUT
 func (rest *REST) UpdateByID(res http.ResponseWriter, req *http.Request) {
 	var mgh mongo.Helper
 	mgh.Init()
@@ -51,59 +77,54 @@ func (rest *REST) UpdateByID(res http.ResponseWriter, req *http.Request) {
 
 	decoder := json.NewDecoder(req.Body)
 
-	msg := "Success"
-	msgType := "Information"
-
 	if err := decoder.Decode(&rest.OBJ); err != nil {
-		msg, msgType = "Format Not Match", "FormatError"
 		log.Println(err)
-	} else {
-		vars := mux.Vars(req)
-		id := vars["id"]
+		rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
+		return
+	}
+	vars := mux.Vars(req)
+	id := vars["id"]
 
-		if err = mgh.UpdateData(rest.Collection, id, &rest.OBJ); err != nil {
-			switch err {
-			case mgo.ErrNotFound:
-				msg, msgType = mgo.ErrNotFound.Error(), "UpdateFail"
-			default:
-				msg, msgType = "Update Fail", "UpdateFail"
-			}
-			log.Println(err)
+	if err := mgh.UpdateData(rest.Collection, id, &rest.OBJ); err != nil {
+		log.Println(err)
+		switch err {
+		case mgo.ErrNotFound:
+			rest.responseResult(res, resultDataNotFound)
+		default:
+			rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
 		}
+		return
 	}
 
-	message.PrintJSONMessage(res, msg, msgType)
+	rest.responseResult(res, resultUpdateComplete)
 }
 
-//GetDataByID ...
+//GetDataByID : Get Single Data By HTTP GET
 func (rest *REST) GetDataByID(res http.ResponseWriter, req *http.Request) {
 	var mgh mongo.Helper
 	mgh.Init()
 
 	defer mgh.Close()
 
-	res.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(req)
 	id := vars["id"]
 
 	var obj interface{}
 	var err error
 	if obj, err = mgh.GetOneData(rest.Collection, string(id)); err != nil {
-		var msg, msgType string
+		log.Println(err)
 		switch err {
 		case mgo.ErrNotFound:
-			msg, msgType = mgo.ErrNotFound.Error(), "UpdateFial"
+			rest.responseResult(res, resultDataNotFound)
 		default:
-			msg, msgType = "Get Data Fail", "Error"
+			rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
 		}
-		message.PrintJSONMessage(res, msg, msgType)
-	} else {
-		json.NewEncoder(res).Encode(obj)
+		return
 	}
-
+	rest.responseDataResult(res, resultSuccess, obj)
 }
 
-//InsertData ...
+//InsertData : Insert Data By HTTP POST
 func (rest *REST) InsertData(res http.ResponseWriter, req *http.Request) {
 	var mgh mongo.Helper
 	mgh.Init()
@@ -111,22 +132,18 @@ func (rest *REST) InsertData(res http.ResponseWriter, req *http.Request) {
 	defer mgh.Close()
 
 	decoder := json.NewDecoder(req.Body)
-	err := decoder.Decode(&rest.OBJ)
 
-	if err != nil {
-		message.PrintJSONMessage(res, "Format Not Match", "FormatError")
+	if err := decoder.Decode(&rest.OBJ); err != nil {
 		log.Println(err)
+		rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
 		return
 	}
 
-	err = mgh.InsertData(rest.Collection, &rest.OBJ)
-
-	if err != nil {
-		message.PrintJSONMessage(res, "Insert Fail", "UpdateError")
+	if err := mgh.InsertData(rest.Collection, &rest.OBJ); err != nil {
 		log.Println(err)
+		rest.responseErrorResult(res, Error{Code: 500, ErrorMessage: err.Error()})
 		return
 	}
 
-	message.PrintJSONMessage(res, "Success", "Infomation")
-
+	rest.responseResult(res, resultInsertComplete)
 }
