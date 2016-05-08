@@ -15,9 +15,9 @@ func main() {
 	router.HandleFunc("/", index)
 
 	//REST API For Person
-	router.HandleFunc("/person/{id}", person.GetDataByID).Methods("GET")
-	router.HandleFunc("/person", person.InsertData).Methods("POST")
-	router.HandleFunc("/person/{id}", person.UpdateByID).Methods("PUT")
+	router.HandleFunc("/person/{id}", person.Handler.GetDataByID).Methods("GET")
+	router.HandleFunc("/person", person.Handler.InsertData).Methods("POST")
+	router.HandleFunc("/person/{id}", person.Handler.UpdateByID).Methods("PUT")
 
 	log.Println("Server Start ...")
 	log.Fatal(http.ListenAndServe(":8080", router))

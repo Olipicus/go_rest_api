@@ -58,7 +58,7 @@ func (h *Helper) InsertData(collectionName string, obj interface{}) error {
 func (h *Helper) UpdateData(collectionName string, id string, obj interface{}) error {
 	c := h.session.DB(dbName).C(collectionName)
 	update := bson.M{"$set": obj}
-	if err := c.UpdateId(id, update); err != nil {
+	if err := c.UpdateId(bson.ObjectIdHex(id), update); err != nil {
 		return err
 	}
 	return nil
