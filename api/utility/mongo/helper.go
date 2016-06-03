@@ -9,7 +9,7 @@ import (
 
 const (
 	dbName       = "test"
-	mongoAddress = "192.168.99.100:27017"
+	mongoAddress = "db:27017"
 )
 
 //Helper Struct of MongoHelper

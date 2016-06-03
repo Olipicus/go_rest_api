@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"html"
 	"log"
+	"net"
 	"net/http"
 
 	"code.olipicus.com/go_rest_api/api/person"
@@ -26,5 +26,6 @@ func main() {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+	addrs, _ := net.InterfaceAddrs()
+	fmt.Fprintf(w, "Hello, %v", addrs)
 }
