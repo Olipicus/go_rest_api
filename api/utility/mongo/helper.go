@@ -7,10 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-const (
-	dbName       = "test"
-	mongoAddress = "db:27017"
-)
+var dbName string
 
 //Helper Struct of MongoHelper
 type Helper struct {
@@ -18,8 +15,9 @@ type Helper struct {
 }
 
 //Init : Initial DB
-func (h *Helper) Init() {
+func (h *Helper) Init(mongoAddress string, databaseName string) {
 	session, err := mgo.Dial(mongoAddress)
+	dbName = databaseName
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,6 +41,13 @@ func (h *Helper) GetOneData(collectionName string, id string) (interface{}, erro
 	return obj, err
 }
 
+//GetOneDataToObj : Get Single Document
+func (h *Helper) GetOneDataToObj(collectionName string, id string, obj interface{}) error {
+	c := h.session.DB(dbName).C(collectionName)
+	err := c.FindId(bson.ObjectIdHex(id)).One(obj)
+	return err
+}
+
 //RemoveByID : Remove Data By ID
 func (h *Helper) RemoveByID(collectionName string, id string) error {
 	c := h.session.DB(dbName).C(collectionName)
@@ -61,4 +66,9 @@ func (h *Helper) UpdateData(collectionName string, id string, obj interface{}) e
 	c := h.session.DB(dbName).C(collectionName)
 	update := bson.M{"$set": obj}
 	return c.UpdateId(bson.ObjectIdHex(id), update)
+}
+
+//GetCollecitonObj : get collection from mgo
+func (h *Helper) GetCollecitonObj(collectionName string) *mgo.Collection {
+	return h.session.DB(dbName).C(collectionName)
 }
